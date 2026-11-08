@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #040404;
+  --surface: #0a0907;
+  --surface-card: #100e0a;
+  --text: #f5eedc;
+  --muted: #a69e8b;
+  --gold: #dfba63;
+  --gold-light: #f7e6b5;
+  --gold-dark: #9e7a29;
+  --line: #2a2215;
+  --g: #1e9a4b;
+  --y: #fcd116;
+  --r: #da121a;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: #040404;
+  color: #f5eedc;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(223, 186, 99, 0.04) 0%, transparent 65%),
+    linear-gradient(to bottom, #040404, #080705 40%, #040404 100%);
+}
+
+h1, h2, h3, .font-serif, .font-cinzel {
+  font-family: 'Cinzel', 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #060504;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b2316;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #dfba63;
+}
+
+/* Gold text gradient */
+.text-gold-gradient {
+  background: linear-gradient(180deg, #fbf2d3 0%, #dfba63 50%, #9e7a29 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gold-bright {
+  background: linear-gradient(135deg, #ffffff 0%, #f7e6b5 40%, #dfba63 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Metallic button sheen */
+.gold-button {
+  background: linear-gradient(135deg, #f5e2af 0%, #dfba63 50%, #b88f34 100%);
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(223, 186, 99, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gold-button:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 28px rgba(223, 186, 99, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Luxury card with hairline gold border */
+.gold-card {
+  background: radial-gradient(circle at 50% 0%, #15120c 0%, #0b0907 100%);
+  border: 1px solid rgba(223, 186, 99, 0.22);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(223, 186, 99, 0.05);
+  transition: all 0.3s ease;
+}
+.gold-card:hover {
+  border-color: rgba(223, 186, 99, 0.45);
+  box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.9), 0 0 30px -5px rgba(223, 186, 99, 0.15);
+}
+
+/* Flag gradient line */
+.flag-ribbon {
+  display: flex;
+  height: 3px;
+  width: 100%;
+}
+.flag-ribbon i:nth-child(1) { flex: 1; background: #1e9a4b; }
+.flag-ribbon i:nth-child(2) { flex: 1; background: #fcd116; }
+.flag-ribbon i:nth-child(3) { flex: 1; background: #da121a; }
+
+/* Subtle logo glow */
+@keyframes emblemGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 25px rgba(223, 186, 99, 0.3)) drop-shadow(0 0 60px rgba(223, 186, 99, 0.15));
+  }
+  50% {
+    filter: drop-shadow(0 0 45px rgba(223, 186, 99, 0.5)) drop-shadow(0 0 90px rgba(223, 186, 99, 0.25));
+  }
+}
+.emblem-glow {
+  animation: emblemGlow 4s ease-in-out infinite;
+}
+
+/* Shimmer highlight */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: skewX(-20deg);
+  animation: shimmer 6s infinite;
+}

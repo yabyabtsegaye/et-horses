@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered member profile of the Ethiopian Horse Racing Club",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user authentication UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "User legal full name"
+        },
+        "email": {
+          "type": "string",
+          "description": "Primary email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["bettor", "owner", "breeder", "syndicate"],
+          "description": "Membership classification"
+        },
+        "balance": {
+          "type": "number",
+          "description": "Current wagering vault balance in ETB"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Profile picture URL"
+        },
+        "kycVerified": {
+          "type": "boolean",
+          "description": "Whether member identity is verified"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO date string when account was created"
+        }
+      },
+      "required": ["id", "name", "email", "role", "balance", "createdAt"]
+    },
+    "Bet": {
+      "title": "Bet",
+      "description": "Official wager placed on a highland race",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Bet unique identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the member who placed the wager"
+        },
+        "raceId": {
+          "type": "string",
+          "description": "Target race identifier"
+        },
+        "raceName": {
+          "type": "string",
+          "description": "Race title"
+        },
+        "horseId": {
+          "type": "string",
+          "description": "Runner identifier"
+        },
+        "horseName": {
+          "type": "string",
+          "description": "Horse name in English and Amharic"
+        },
+        "odds": {
+          "type": "number",
+          "description": "Decimal odds multiplier"
+        },
+        "stake": {
+          "type": "number",
+          "description": "Wager amount in ETB"
+        },
+        "potentialPayout": {
+          "type": "number",
+          "description": "Estimated return if runner wins"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "won", "lost"],
+          "description": "Wager outcome status"
+        },
+        "placedAt": {
+          "type": "string",
+          "description": "Timestamp string of bet placement"
+        }
+      },
+      "required": ["id", "userId", "raceId", "raceName", "horseId", "horseName", "odds", "stake", "potentialPayout", "status", "placedAt"]
+    },
+    "EventRSVP": {
+      "title": "EventRSVP",
+      "description": "Trackside pass reservation for Jan Meda derby events",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique pass ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Member UID"
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Target derby event ID"
+        },
+        "eventTitle": {
+          "type": "string",
+          "description": "Event title"
+        },
+        "eventDate": {
+          "type": "string",
+          "description": "Event calendar date"
+        },
+        "location": {
+          "type": "string",
+          "description": "Venue enclosure"
+        },
+        "tier": {
+          "type": "string",
+          "description": "Enclosure tier pass"
+        },
+        "guests": {
+          "type": "number",
+          "description": "Number of admitted guests"
+        },
+        "ticketCode": {
+          "type": "string",
+          "description": "Digital barcode / QR badge code"
+        },
+        "reservedAt": {
+          "type": "string",
+          "description": "Reservation timestamp"
+        }
+      },
+      "required": ["id", "userId", "eventId", "eventTitle", "eventDate", "location", "tier", "ticketCode", "reservedAt"]
+    },
+    "HorseInquiry": {
+      "title": "HorseInquiry",
+      "description": "Official bloodline stud or fractional syndicate equity inquiry",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Inquiry identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Member UID"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Inquirer legal name"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Contact email"
+        },
+        "horseId": {
+          "type": "string",
+          "description": "Thoroughbred ID"
+        },
+        "horseName": {
+          "type": "string",
+          "description": "Thoroughbred name"
+        },
+        "category": {
+          "type": "string",
+          "description": "Syndicate Equity or Stud Cover"
+        },
+        "message": {
+          "type": "string",
+          "description": "Applicant notes"
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "Submission timestamp"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Received", "Under Review", "Contacted"],
+          "description": "Registrar review status"
+        }
+      },
+      "required": ["id", "userId", "userName", "userEmail", "horseName", "category", "message", "submittedAt", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Member profiles and wallet balances"
+    },
+    "/users/{userId}/bets/{betId}": {
+      "schema": "Bet",
+      "description": "Wagers placed by the member"
+    },
+    "/users/{userId}/rsvps/{rsvpId}": {
+      "schema": "EventRSVP",
+      "description": "Derby passes and reservations"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "HorseInquiry",
+      "description": "Syndicate and stud inquiries to ETHR registrars"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Ethiopian Horse Racing (ETHR)",
+  "description": "Official platform for Ethiopian Horse Racing (ETHR) featuring member authentication, race day betting, horse ownership syndicates, events, and horse marketplace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

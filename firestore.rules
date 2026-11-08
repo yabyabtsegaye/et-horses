@@ -1,0 +1,146 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unexpected paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'balance', 'createdAt'])
+        && data.keys().hasOnly(['id', 'name', 'email', 'role', 'balance', 'avatar', 'phone', 'kycVerified', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 150
+        && data.role in ['bettor', 'owner', 'breeder', 'syndicate']
+        && data.balance is number && data.balance >= 0
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // Bet Validation
+    function isValidBet(data) {
+      return data.keys().hasAll(['id', 'userId', 'raceId', 'raceName', 'horseId', 'horseName', 'odds', 'stake', 'potentialPayout', 'status', 'placedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.raceId is string && data.raceId.size() <= 128
+        && data.raceName is string && data.raceName.size() <= 150
+        && data.horseId is string && data.horseId.size() <= 128
+        && data.horseName is string && data.horseName.size() <= 150
+        && data.odds is number && data.odds > 0
+        && data.stake is number && data.stake > 0
+        && data.potentialPayout is number && data.potentialPayout >= 0
+        && data.status in ['pending', 'won', 'lost']
+        && data.placedAt is string && data.placedAt.size() <= 50;
+    }
+
+    // Event RSVP Validation
+    function isValidRSVP(data) {
+      return data.keys().hasAll(['id', 'userId', 'eventId', 'eventTitle', 'eventDate', 'location', 'tier', 'ticketCode', 'reservedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.eventId is string && data.eventId.size() <= 128
+        && data.eventTitle is string && data.eventTitle.size() <= 200
+        && data.eventDate is string && data.eventDate.size() <= 100
+        && data.location is string && data.location.size() <= 200
+        && data.tier is string && data.tier.size() <= 100
+        && data.ticketCode is string && data.ticketCode.size() <= 100
+        && data.reservedAt is string && data.reservedAt.size() <= 50;
+    }
+
+    // Inquiry Validation
+    function isValidInquiry(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'userEmail', 'horseName', 'category', 'message', 'submittedAt', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userName is string && data.userName.size() > 0 && data.userName.size() <= 100
+        && data.userEmail is string && data.userEmail.size() > 0 && data.userEmail.size() <= 150
+        && data.horseName is string && data.horseName.size() <= 150
+        && data.category is string && data.category.size() <= 100
+        && data.message is string && data.message.size() <= 2000
+        && data.submittedAt is string && data.submittedAt.size() <= 50
+        && data.status in ['Received', 'Under Review', 'Contacted'];
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Blanket user listing forbidden for PII privacy
+
+      allow create: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().id == userId;
+
+      allow update: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt;
+
+      allow delete: if false;
+
+      // User Wagers Subcollection
+      match /bets/{betId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(betId)
+          && isValidBet(incoming())
+          && incoming().userId == userId;
+
+        allow update: if isOwner(userId)
+          && isValidBet(incoming())
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id;
+
+        allow delete: if false;
+      }
+
+      // User Derby Passes Subcollection
+      match /rsvps/{rsvpId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(rsvpId)
+          && isValidRSVP(incoming())
+          && incoming().userId == userId;
+
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // Horse & Syndicate Inquiries Collection
+    match /inquiries/{inquiryId} {
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && isValidId(inquiryId)
+        && isValidInquiry(incoming())
+        && incoming().userId == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+  }
+}
