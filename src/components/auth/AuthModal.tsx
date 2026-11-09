@@ -46,6 +46,7 @@ export const AuthModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Forgot password mode inside modal
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -121,6 +122,17 @@ export const AuthModal: React.FC = () => {
       resetForm();
     } else {
       setError(result.error || 'Demo login failed');
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsGoogleLoading(true);
+    const res = await loginWithSocial('Google');
+    setIsGoogleLoading(false);
+    if (res.success) {
+      closeAuthModal();
+      resetForm();
     }
   };
 
@@ -562,28 +574,33 @@ export const AuthModal: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => loginWithSocial('Google')}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-[#dfba63]/50 hover:border-[#dfba63] bg-[#120e08] hover:bg-[#1c170d] rounded-2xl text-xs font-semibold text-white transition-all cursor-pointer shadow-[0_0_20px_rgba(223,186,99,0.15)] group"
+              disabled={isGoogleLoading || isSubmitting}
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-[#dfba63]/50 hover:border-[#dfba63] bg-[#120e08] hover:bg-[#1c170d] rounded-2xl text-xs font-semibold text-white transition-all cursor-pointer shadow-[0_0_20px_rgba(223,186,99,0.15)] group disabled:opacity-50"
             >
-              <svg className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                <path
-                  fill="#EA4335"
-                  d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.1 7.5 23 12 23z"
-                />
-              </svg>
-              <span>Continue with Google</span>
+              {isGoogleLoading ? (
+                <div className="w-4 h-4 border-2 border-[#dfba63] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.1 7.5 23 12 23z"
+                  />
+                </svg>
+              )}
+              <span>{isGoogleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
             </button>
 
             <button

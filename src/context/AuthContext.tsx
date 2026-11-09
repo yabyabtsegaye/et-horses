@@ -12,6 +12,8 @@ import {
   setDoc,
   getDoc,
   onSnapshot,
+  query,
+  where,
   handleFirestoreError,
   OperationType,
   FirebaseUser
@@ -195,8 +197,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ethr_user_inquiries', JSON.stringify(inquiries));
   }, [inquiries]);
 
+  // Helper to remove undefined properties before sending to Firestore
+  const cleanFirestoreData = (data: Record<string, any>): Record<string, any> => {
+    const clean: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== undefined) {
+        clean[k] = v;
+      }
+    }
+    return clean;
+  };
+
   // Firebase Auth State Listener & Real-time Firestore Sync
   useEffect(() => {
+    let unsubscribeUserDoc: (() => void) | undefined;
+    let unsubscribeBets: (() => void) | undefined;
+    let unsubscribeRsvps: (() => void) | undefined;
+    let unsubscribeInquiries: (() => void) | undefined;
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       setIsFirebaseReady(true);
       if (fbUser) {
@@ -209,23 +227,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             currentProfile = userSnap.data() as User;
           } else {
             // First time Google login - provision new user document with 0 ETB initial balance
-            currentProfile = {
+            const initialDoc: Record<string, any> = {
               id: fbUser.uid,
               name: fbUser.displayName || 'ETHR Royal Member',
               email: fbUser.email || `${fbUser.uid}@member.ethr.et`,
               role: 'bettor',
               balance: 0,
-              avatar: fbUser.photoURL || undefined,
               createdAt: new Date().toISOString().split('T')[0],
               kycVerified: true
             };
-            await setDoc(userDocRef, currentProfile);
+            if (fbUser.photoURL) {
+              initialDoc.avatar = fbUser.photoURL;
+            }
+            await setDoc(userDocRef, initialDoc);
+            currentProfile = initialDoc as User;
           }
 
           setUser(currentProfile);
 
           // Real-time Firestore listener for User document
-          const unsubscribeUserDoc = onSnapshot(userDocRef, (snapshot) => {
+          unsubscribeUserDoc = onSnapshot(userDocRef, (snapshot) => {
             if (snapshot.exists()) {
               setUser(snapshot.data() as User);
             }
@@ -235,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Real-time listener for User Bets subcollection
           const betsColRef = collection(db, 'users', fbUser.uid, 'bets');
-          const unsubscribeBets = onSnapshot(betsColRef, (snapshot) => {
+          unsubscribeBets = onSnapshot(betsColRef, (snapshot) => {
             const remoteBets: Bet[] = [];
             snapshot.forEach((d) => remoteBets.push(d.data() as Bet));
             if (remoteBets.length > 0) {
@@ -247,7 +268,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Real-time listener for User RSVPs subcollection
           const rsvpsColRef = collection(db, 'users', fbUser.uid, 'rsvps');
-          const unsubscribeRsvps = onSnapshot(rsvpsColRef, (snapshot) => {
+          unsubscribeRsvps = onSnapshot(rsvpsColRef, (snapshot) => {
             const remoteRsvps: EventRSVP[] = [];
             snapshot.forEach((d) => remoteRsvps.push(d.data() as EventRSVP));
             if (remoteRsvps.length > 0) {
@@ -257,18 +278,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             handleFirestoreError(err, OperationType.LIST, `users/${fbUser.uid}/rsvps`);
           });
 
-          return () => {
-            unsubscribeUserDoc();
-            unsubscribeBets();
-            unsubscribeRsvps();
-          };
+          // Real-time listener for User Inquiries
+          const inqQuery = query(collection(db, 'inquiries'), where('userId', '==', fbUser.uid));
+          unsubscribeInquiries = onSnapshot(inqQuery, (snapshot) => {
+            const remoteInqs: HorseInquiry[] = [];
+            snapshot.forEach((d) => remoteInqs.push(d.data() as HorseInquiry));
+            if (remoteInqs.length > 0) {
+              setInquiries(remoteInqs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)));
+            }
+          }, (err) => {
+            handleFirestoreError(err, OperationType.LIST, 'inquiries');
+          });
+
         } catch (error) {
           console.error('Error hydrating Firebase user:', error);
         }
+      } else {
+        if (unsubscribeUserDoc) unsubscribeUserDoc();
+        if (unsubscribeBets) unsubscribeBets();
+        if (unsubscribeRsvps) unsubscribeRsvps();
+        if (unsubscribeInquiries) unsubscribeInquiries();
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+      if (unsubscribeBets) unsubscribeBets();
+      if (unsubscribeRsvps) unsubscribeRsvps();
+      if (unsubscribeInquiries) unsubscribeInquiries();
+    };
   }, []);
 
   const openAuthModal = (tab: 'in' | 'up' = 'in') => {
@@ -385,26 +424,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userSnap.exists()) {
         profile = userSnap.data() as User;
       } else {
-        profile = {
+        const initialDoc: Record<string, any> = {
           id: fbUser.uid,
           name: fbUser.displayName || 'ETHR Royal Member',
-          email: fbUser.email || '',
+          email: fbUser.email || `${fbUser.uid}@member.ethr.et`,
           role: 'bettor',
           balance: 0,
-          avatar: fbUser.photoURL || undefined,
           createdAt: new Date().toISOString().split('T')[0],
           kycVerified: true
         };
-        await setDoc(userDocRef, profile);
+        if (fbUser.photoURL) {
+          initialDoc.avatar = fbUser.photoURL;
+        }
+        await setDoc(userDocRef, initialDoc);
+        profile = initialDoc as User;
       }
 
       setUser(profile);
       closeAuthModal();
-      showToast(`Authenticated with Google! Welcome to the Royal Paddock, ${profile.name}.`);
+      showToast(`Welcome to the Royal Paddock, ${profile.name}! Signed in via Google.`);
       return { success: true };
     } catch (error: any) {
       console.error('Google Sign-In Error:', error);
-      const msg = error.message || 'Google sign-in was cancelled or encountered an issue.';
+      const msg = error.code === 'auth/popup-closed-by-user' 
+        ? 'Sign-in window closed before completing.' 
+        : error.message || 'Google sign-in was cancelled or encountered an issue.';
       showToast(msg);
       return { success: false, error: msg };
     }
@@ -430,10 +474,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUser(socialUser);
-    try {
-      await setDoc(doc(db, 'users', socialUser.id), socialUser);
-    } catch {}
-
     closeAuthModal();
     showToast(`Signed in successfully via Apple ID! Welcome Almaz.`);
     return { success: true, provider: 'Apple' };
@@ -460,12 +500,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = { ...user, ...updates };
     setUser(updated);
 
-    // Sync to Firestore
-    try {
-      const userDocRef = doc(db, 'users', user.id);
-      await setDoc(userDocRef, updated, { merge: true });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.id}`);
+    // Sync to Firestore if authenticated with Firebase
+    if (auth.currentUser) {
+      try {
+        const userDocRef = doc(db, 'users', user.id);
+        await setDoc(userDocRef, cleanFirestoreData(updated), { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.id}`);
+      }
     }
 
     // Also update in local database
@@ -512,14 +554,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBets((prev) => [newBet, ...prev]);
 
     // Persist Bet to Firestore under /users/{userId}/bets/{betId}
-    try {
+    if (auth.currentUser) {
       const betDocRef = doc(db, 'users', user.id, 'bets', betId);
       setDoc(betDocRef, {
         ...newBet,
         userId: user.id
+      }).catch((err) => {
+        handleFirestoreError(err, OperationType.CREATE, `users/${user.id}/bets/${betId}`);
       });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `users/${user.id}/bets/${betId}`);
     }
 
     showToast(`Wager confirmed on ${betData.horseName}! Stake: ${betData.stake} ETB @ ${betData.odds}x`);
@@ -541,11 +583,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           // Update in Firestore
-          if (user) {
-            try {
-              const betDocRef = doc(db, 'users', user.id, 'bets', bet.id);
-              setDoc(betDocRef, { status: updatedBet.status }, { merge: true });
-            } catch (err) {}
+          if (auth.currentUser && user) {
+            const betDocRef = doc(db, 'users', user.id, 'bets', bet.id);
+            setDoc(betDocRef, { status: updatedBet.status }, { merge: true }).catch((err) => {
+              handleFirestoreError(err, OperationType.UPDATE, `users/${user.id}/bets/${bet.id}`);
+            });
           }
 
           return updatedBet;
@@ -573,14 +615,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEventRSVPs((prev) => [newRSVP, ...prev]);
 
     // Persist RSVP to Firestore under /users/{userId}/rsvps/{rsvpId}
-    try {
+    if (auth.currentUser) {
       const rsvpDocRef = doc(db, 'users', user.id, 'rsvps', rsvpId);
       setDoc(rsvpDocRef, {
         ...newRSVP,
         userId: user.id
+      }).catch((err) => {
+        handleFirestoreError(err, OperationType.CREATE, `users/${user.id}/rsvps/${rsvpId}`);
       });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `users/${user.id}/rsvps/${rsvpId}`);
     }
 
     showToast(`VIP Pass confirmed for ${rsvpData.eventTitle}! Pass Code: ${code}`);
@@ -599,18 +641,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setInquiries((prev) => [newInquiry, ...prev]);
 
     // Persist to Firestore /inquiries/{inquiryId}
-    if (user) {
-      try {
-        const inqDocRef = doc(db, 'inquiries', inquiryId);
-        setDoc(inqDocRef, {
-          ...newInquiry,
-          userId: user.id,
-          userName: user.name,
-          userEmail: user.email
-        });
-      } catch (err) {
+    if (auth.currentUser && user) {
+      const inqDocRef = doc(db, 'inquiries', inquiryId);
+      const dataToSave = cleanFirestoreData({
+        ...newInquiry,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email
+      });
+      setDoc(inqDocRef, dataToSave).catch((err) => {
         handleFirestoreError(err, OperationType.CREATE, `inquiries/${inquiryId}`);
-      }
+      });
     }
 
     showToast(`Official inquiry for ${inquiryData.horseName} submitted. Registrar will review.`);
